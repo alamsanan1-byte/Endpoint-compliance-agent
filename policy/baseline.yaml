@@ -1,0 +1,39 @@
+version: 1
+
+baseline:
+  disk_encryption:
+    required: true
+    severity: critical
+
+  patch_level:
+    max_days_since_update: 30
+    severity: high
+
+  firewall:
+    required: true
+    severity: high
+
+  antivirus:
+    required: true
+    max_definition_age_days: 3
+    severity: critical
+
+  local_admins:
+    max_count: 2
+    allowlist:
+      - Administrator
+      - itadmin
+    severity: high
+
+  screen_lock:
+    max_timeout_minutes: 15
+    severity: medium
+
+  pending_reboot:
+    severity: medium
+
+  unauthorised_software:
+    blocklist: []
+    severity: high
+
+compliance_threshold: 90
