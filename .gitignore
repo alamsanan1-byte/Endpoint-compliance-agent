@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Local databases and generated output
+*.db
+*.sqlite
+*.sqlite3
+output/
+data/generated/
+
+# Logs
+*.log
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Test / coverage
+.coverage
+htmlcov/
+coverage.xml
+
+# Docker overrides
+docker-compose.override.yml
