@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/endpoint-report.schema.json",
+  "title": "Endpoint Compliance Report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "device_id",
+    "hostname",
+    "os",
+    "os_version",
+    "collected_at",
+    "agent_version",
+    "checks"
+  ],
+  "properties": {
+    "device_id": {"type": "string", "minLength": 1},
+    "hostname": {"type": "string", "minLength": 1},
+    "os": {"type": "string", "enum": ["windows", "linux"]},
+    "os_version": {"type": "string", "minLength": 1},
+    "collected_at": {"type": "string", "format": "date-time"},
+    "agent_version": {"type": "string", "minLength": 1},
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "status", "value", "detail"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "status": {
+            "type": "string",
+            "enum": ["pass", "fail", "warn", "error", "not_applicable"]
+          },
+          "value": {},
+          "detail": {"type": ["string", "null"]}
+        }
+      }
+    }
+  }
+}
