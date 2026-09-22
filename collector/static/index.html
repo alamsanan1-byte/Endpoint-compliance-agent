@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Endpoint Compliance · Fleet</title>
+  <link rel="stylesheet" href="/assets/style.css"><script src="/assets/dashboard.js" defer></script>
+</head>
+<body>
+  <header><div class="brand"><span class="mark">EC</span><div>Endpoint Compliance <small>FLEET OBSERVABILITY / v1.0</small></div></div><span class="tag">Portfolio lab</span></header>
+  <main>
+    <section class="hero"><p class="eyebrow">SECURITY POSTURE</p><h1>Every endpoint. One baseline.</h1><p>Inspect configuration drift, missing evidence and the controls that need attention.</p></section>
+    <form id="login"><label for="key">Collector API key</label><div class="controls"><input id="key" type="password" autocomplete="off" placeholder="Enter your local collector key" required><button type="submit">Connect fleet</button><button type="button" id="disconnect" class="secondary">Disconnect</button></div><small>The key stays in this page’s memory and is cleared on reload.</small></form>
+    <p id="message" role="status" aria-live="polite">Connect to view your endpoints. DEMO device names identify synthetic data.</p>
+    <section class="metrics" aria-label="Fleet summary" id="metrics"></section>
+    <section class="panel"><div class="panel-title"><div><h2>Device inventory</h2><p id="updated">No reports loaded</p></div><div class="controls"><label class="sr-only" for="search">Search devices</label><input id="search" type="search" placeholder="Search hostname or ID"><label class="sr-only" for="filter">Filter state</label><select id="filter"><option value="all">All states</option><option>compliant</option><option>non_compliant</option><option>warning</option><option>unknown</option><option>stale</option></select><button type="button" id="refresh" class="secondary">Refresh</button></div></div>
+      <div class="table-wrap"><table><thead><tr><th>Endpoint</th><th>Platform</th><th>Score</th><th>State</th><th>Last collected</th><th>Evidence</th></tr></thead><tbody id="devices"><tr><td colspan="6">Connect and submit a report to begin.</td></tr></tbody></table></div>
+    </section>
+    <section id="detail" class="panel" hidden><h2 id="detail-title">Device evidence</h2><p id="detail-note"></p><div id="checks"></div><h3>Report history</h3><div id="history"></div></section>
+    <footer>Raw facts → central policy → weighted score. Unknown evidence never earns a pass. <span>No automatic remediation.</span></footer>
+  </main>
+</body>
+</html>

@@ -1,0 +1,82 @@
+{
+  "device_id": "DEMO-WINDOWS-001",
+  "hostname": "synthetic-windows-001",
+  "os": "windows",
+  "os_version": "11 (synthetic)",
+  "collected_at": "2026-09-22T00:00:00+00:00",
+  "agent_version": "1.0.0",
+  "checks": [
+    {
+      "id": "disk_encryption",
+      "status": "pass",
+      "value": {
+        "enabled": true
+      },
+      "detail": null
+    },
+    {
+      "id": "patch_level",
+      "status": "pass",
+      "value": {
+        "days_since_update": 5
+      },
+      "detail": null
+    },
+    {
+      "id": "firewall",
+      "status": "pass",
+      "value": {
+        "enabled": true
+      },
+      "detail": null
+    },
+    {
+      "id": "antivirus",
+      "status": "pass",
+      "value": {
+        "enabled": true,
+        "definition_age_days": 1
+      },
+      "detail": null
+    },
+    {
+      "id": "local_admins",
+      "status": "pass",
+      "value": {
+        "members": [
+          "Administrator",
+          "itadmin"
+        ]
+      },
+      "detail": null
+    },
+    {
+      "id": "screen_lock",
+      "status": "pass",
+      "value": {
+        "enabled": true,
+        "timeout_minutes": 5
+      },
+      "detail": null
+    },
+    {
+      "id": "pending_reboot",
+      "status": "pass",
+      "value": {
+        "required": false
+      },
+      "detail": null
+    },
+    {
+      "id": "unauthorised_software",
+      "status": "pass",
+      "value": {
+        "installed": [
+          "Example Editor",
+          "Example Browser"
+        ]
+      },
+      "detail": null
+    }
+  ]
+}
