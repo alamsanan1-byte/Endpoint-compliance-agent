@@ -1,39 +1,38 @@
 version: 1
-
 baseline:
   disk_encryption:
     required: true
     severity: critical
-
   patch_level:
     max_days_since_update: 30
     severity: high
-
   firewall:
     required: true
     severity: high
-
   antivirus:
     required: true
     max_definition_age_days: 3
     severity: critical
-
   local_admins:
     max_count: 2
-    allowlist:
-      - Administrator
-      - itadmin
+    allowlist: [Administrator, itadmin]
+    allowlist_by_os:
+      windows: [Administrator, itadmin]
+      linux: [root, itadmin]
     severity: high
-
   screen_lock:
     max_timeout_minutes: 15
+    not_applicable_on: [linux]
     severity: medium
-
   pending_reboot:
     severity: medium
-
   unauthorised_software:
-    blocklist: []
+    blocklist: [demo-blocked-app]
     severity: high
-
 compliance_threshold: 90
+reporting:
+  max_age_hours: 24
+  future_tolerance_seconds: 300
+  stale_after_hours: 24
+alerts:
+  cooldown_minutes: 60

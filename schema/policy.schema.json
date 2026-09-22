@@ -1,0 +1,372 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "baseline",
+    "compliance_threshold",
+    "reporting",
+    "alerts"
+  ],
+  "properties": {
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "baseline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "disk_encryption",
+        "patch_level",
+        "firewall",
+        "antivirus",
+        "local_admins",
+        "screen_lock",
+        "pending_reboot",
+        "unauthorised_software"
+      ],
+      "properties": {
+        "disk_encryption": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "required",
+            "severity"
+          ],
+          "properties": {
+            "required": {
+              "type": "boolean"
+            },
+            "severity": {
+              "enum": [
+                "critical",
+                "high",
+                "medium",
+                "low"
+              ]
+            },
+            "not_applicable_on": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "enum": [
+                  "linux",
+                  "windows"
+                ]
+              }
+            }
+          }
+        },
+        "patch_level": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "max_days_since_update",
+            "severity"
+          ],
+          "properties": {
+            "max_days_since_update": {
+              "type": "number",
+              "minimum": 0
+            },
+            "severity": {
+              "enum": [
+                "critical",
+                "high",
+                "medium",
+                "low"
+              ]
+            },
+            "not_applicable_on": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "enum": [
+                  "linux",
+                  "windows"
+                ]
+              }
+            }
+          }
+        },
+        "firewall": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "required",
+            "severity"
+          ],
+          "properties": {
+            "required": {
+              "type": "boolean"
+            },
+            "severity": {
+              "enum": [
+                "critical",
+                "high",
+                "medium",
+                "low"
+              ]
+            },
+            "not_applicable_on": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "enum": [
+                  "linux",
+                  "windows"
+                ]
+              }
+            }
+          }
+        },
+        "antivirus": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "required",
+            "max_definition_age_days",
+            "severity"
+          ],
+          "properties": {
+            "required": {
+              "type": "boolean"
+            },
+            "max_definition_age_days": {
+              "type": "number",
+              "minimum": 0
+            },
+            "severity": {
+              "enum": [
+                "critical",
+                "high",
+                "medium",
+                "low"
+              ]
+            },
+            "not_applicable_on": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "enum": [
+                  "linux",
+                  "windows"
+                ]
+              }
+            }
+          }
+        },
+        "local_admins": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "max_count",
+            "allowlist",
+            "severity"
+          ],
+          "properties": {
+            "max_count": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "allowlist": {
+              "type": "array",
+              "maxItems": 10000,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256
+              }
+            },
+            "severity": {
+              "enum": [
+                "critical",
+                "high",
+                "medium",
+                "low"
+              ]
+            },
+            "not_applicable_on": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "enum": [
+                  "linux",
+                  "windows"
+                ]
+              }
+            },
+            "allowlist_by_os": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [],
+              "properties": {
+                "windows": {
+                  "type": "array",
+                  "maxItems": 10000,
+                  "uniqueItems": true,
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 256
+                  }
+                },
+                "linux": {
+                  "type": "array",
+                  "maxItems": 10000,
+                  "uniqueItems": true,
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 256
+                  }
+                }
+              }
+            }
+          }
+        },
+        "screen_lock": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "max_timeout_minutes",
+            "severity"
+          ],
+          "properties": {
+            "max_timeout_minutes": {
+              "type": "number",
+              "minimum": 0
+            },
+            "severity": {
+              "enum": [
+                "critical",
+                "high",
+                "medium",
+                "low"
+              ]
+            },
+            "not_applicable_on": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "enum": [
+                  "linux",
+                  "windows"
+                ]
+              }
+            }
+          }
+        },
+        "pending_reboot": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "severity"
+          ],
+          "properties": {
+            "severity": {
+              "enum": [
+                "critical",
+                "high",
+                "medium",
+                "low"
+              ]
+            },
+            "not_applicable_on": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "enum": [
+                  "linux",
+                  "windows"
+                ]
+              }
+            }
+          }
+        },
+        "unauthorised_software": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "blocklist",
+            "severity"
+          ],
+          "properties": {
+            "blocklist": {
+              "type": "array",
+              "maxItems": 10000,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256
+              }
+            },
+            "severity": {
+              "enum": [
+                "critical",
+                "high",
+                "medium",
+                "low"
+              ]
+            },
+            "not_applicable_on": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "enum": [
+                  "linux",
+                  "windows"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "compliance_threshold": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "reporting": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "max_age_hours",
+        "future_tolerance_seconds",
+        "stale_after_hours"
+      ],
+      "properties": {
+        "max_age_hours": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "future_tolerance_seconds": {
+          "type": "number",
+          "minimum": 0
+        },
+        "stale_after_hours": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      }
+    },
+    "alerts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cooldown_minutes"
+      ],
+      "properties": {
+        "cooldown_minutes": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}
