@@ -1,0 +1,69 @@
+name: Verify endpoint compliance agent
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  python:
+    name: Python and Linux behaviour
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: python -m pip install -r requirements-dev.lock
+      - run: ruff check .
+      - run: ruff format --check .
+      - run: bash -n agents/linux/check.sh
+      - run: node --check collector/static/dashboard.js
+      - run: pytest -q --junitxml=output/pytest-results.xml
+      - name: Exercise a 50-device synthetic fleet through the HTTP API
+        run: python -m scripts.smoke_test
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: python-test-results
+          path: output/pytest-results.xml
+  windows:
+    name: Windows PowerShell and shared schema
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r requirements-dev.lock
+      - name: Windows PowerShell 5.1 behaviour tests
+        shell: powershell
+        run: ./tests/test_windows_agent.ps1
+      - name: Validate synthetic PowerShell output
+        run: python -m scripts.validate_report output/windows-test.json output/windows-error-test.json
+      - name: Read-only hosted Windows runner collection
+        shell: powershell
+        run: |
+          ./agents/windows/check.ps1 -DeviceId CI-WINDOWS -OutputPath output/windows-live.json | Out-Null
+          python -m scripts.validate_report output/windows-live.json
+      - name: Cross-platform collector tests
+        run: pytest -q tests/test_api.py tests/test_evaluate.py tests/test_alerts.py
+  container:
+    name: Docker build and authenticated API smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and start collector
+        env:
+          API_KEY: ci-only-synthetic-key-never-deploy-this
+        run: docker compose up -d --build --wait
+      - name: Confirm authenticated fleet endpoint
+        run: |
+          curl --fail --retry 10 --retry-connrefused --retry-delay 2 http://127.0.0.1:8000/health
+          curl --fail -H 'Authorization: Bearer ci-only-synthetic-key-never-deploy-this' http://127.0.0.1:8000/fleet
+      - name: Stop containers
+        if: always()
+        run: docker compose down -v
+        env:
+          API_KEY: ci-only-synthetic-key-never-deploy-this

@@ -1,0 +1,21 @@
+[Unit]
+Description=Collect read-only endpoint compliance evidence
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+EnvironmentFile=/etc/endpoint-compliance.env
+WorkingDirectory=/opt/endpoint-compliance
+# This template is for a genuinely headless server; do not use it for desktop assessment.
+ExecStart=/bin/bash /opt/endpoint-compliance/agents/linux/check.sh --headless --send --output /var/lib/endpoint-compliance/latest.json
+StateDirectory=endpoint-compliance
+StateDirectoryMode=0700
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/endpoint-compliance
+TimeoutStartSec=180

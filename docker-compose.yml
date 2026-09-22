@@ -1,0 +1,23 @@
+services:
+  collector:
+    build: .
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      API_KEY: ${API_KEY:?Set API_KEY in .env before starting}
+      WEBHOOK_URL: ${WEBHOOK_URL:-}
+      DATABASE_PATH: /app/data/compliance.db
+      POLICY_PATH: /app/policy/baseline.yaml
+    volumes:
+      - compliance-data:/app/data
+      - ./policy:/app/policy:ro
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+volumes:
+  compliance-data:

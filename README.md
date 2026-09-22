@@ -1,238 +1,200 @@
 # Cross-Platform Endpoint Compliance Agent
 
-> **Status: In Development**
+> **v1.0 implementation complete — release checks in progress.** A working portfolio/lab project for Windows and Linux endpoint monitoring.
 
-A cross-platform endpoint compliance project for auditing Windows and Linux devices against a configurable security baseline and reporting fleet-wide configuration drift.
+[![Verification](https://github.com/alamsanan1-byte/Endpoint-compliance-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/alamsanan1-byte/Endpoint-compliance-agent/actions/workflows/ci.yml)
 
-## Problem
+Collect eight endpoint security signals, evaluate them against a central YAML baseline, and inspect device scores, configuration drift and report history in a fleet dashboard. PowerShell and Bash/Python agents collect **raw facts**; the FastAPI collector owns the policy and compliance verdicts.
 
-Enterprise IT and security teams need reliable visibility into whether endpoints continue to meet requirements such as disk encryption, patching, firewall configuration, antivirus health, privileged-account restrictions and screen-lock settings.
+The project includes working agents, authenticated ingestion, SQLite history, a dashboard, webhook debounce, synthetic examples, scheduling templates, Docker deployment and automated verification. It does not claim enterprise certification or production readiness.
 
-Manual checks do not scale, and endpoint configuration can drift between formal audits. This project is designed to automate collection of endpoint facts, evaluate them centrally against policy and make non-compliant devices easier to identify and investigate.
+## Run the demo in five minutes
 
-## Target Architecture
+Requires Python 3.12. Run these commands from the repository root:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements-dev.lock
+export API_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
+python -m uvicorn collector.api:app --host 127.0.0.1 --port 8000
+```
+
+On Windows PowerShell, activate and set the key with:
+
+```powershell
+.venv\Scripts\Activate.ps1
+python -m pip install -r requirements-dev.lock
+$env:API_KEY = python -c "import secrets; print(secrets.token_urlsafe(32))"
+python -m uvicorn collector.api:app --host 127.0.0.1 --port 8000
+```
+
+Keep that terminal running. In another activated terminal, set `API_KEY` to the **same** secret and run:
+
+```bash
+python -m scripts.generate_fake_fleet --count 50 --send
+```
+
+Open **http://127.0.0.1:8000**, enter your key, and select **Connect fleet**. You will see 20 compliant, 10 non-compliant, 10 warning and 10 unknown devices. Every `DEMO-*` endpoint is synthetic; this does not represent 50 physical devices.
+
+To run a disposable demo without starting a server:
+
+```bash
+python -m scripts.smoke_test
+```
+
+## What is implemented
+
+- [x] Windows agent: BitLocker plus seven further controls
+- [x] Linux agent with the same typed JSON contract
+- [x] JSON Schema validation and known-good / known-bad examples
+- [x] Authenticated FastAPI `POST /reports`
+- [x] SQLite report history, idempotent submission and out-of-order handling
+- [x] Centrally configured scoring, with distinct failure and collection-error states
+- [x] Fleet dashboard, search, state filters, evidence and device history
+- [x] Policy changes immediately reflected in fleet views
+- [x] Optional HTTPS webhook alerts with persistent debounce
+- [x] Windows Task Scheduler and Linux systemd templates
+- [x] Docker Compose deployment with a non-root collector
+- [x] GitHub Actions for Python/Linux, Windows PowerShell and Docker
+
+Verification evidence and platform limits: [docs/VALIDATION.md](docs/VALIDATION.md).
+
+## Architecture
 
 ```mermaid
-flowchart LR
-    W[Windows Endpoint] -->|PowerShell / JSON| API[FastAPI Collector]
-    L[Linux Endpoint] -->|Bash / JSON| API
-    API --> DB[(SQLite)]
-    API --> E[Policy Evaluator]
-    P[baseline.yaml] --> E
-    E --> D[Fleet Dashboard]
-    E --> A[Webhook Alerts]
+flowchart TD
+    W[Windows PowerShell agent] --> A[Authenticated FastAPI collector]
+    L[Linux Bash and Python agent] --> A
+    P[YAML baseline] --> E[Policy evaluator]
+    A --> E
+    E --> S[(SQLite report history)]
+    E --> H[Optional webhook]
+    S --> D[Fleet dashboard]
+    P --> D
 ```
 
-### Design principle: collect facts, evaluate centrally
+Each report stores the original facts, collection/receipt timestamps, ingestion-time evaluation and policy hash. Fleet views re-evaluate the newest facts against the current baseline. Historical evaluations remain unchanged so policy changes do not rewrite past evidence. The hash identifies a policy; it is not a report signature.
 
-The Windows and Linux agents collect raw system facts. They do not own the compliance policy.
+## Endpoint controls and collection scope
 
-The collector evaluates those facts against `policy/baseline.yaml`. This means a threshold such as maximum patch age can be changed centrally without modifying or redeploying every endpoint script.
-
-## Technology Stack
-
-- **PowerShell** — Windows endpoint collection
-- **Bash** — Linux endpoint collection
-- **Python / FastAPI** — report ingestion and policy evaluation
-- **YAML** — configurable security baseline
-- **JSON / JSON Schema** — shared cross-platform reporting contract
-- **SQLite** — device state and compliance history for the lab version
-- **pytest** — automated testing
-- **Docker / Docker Compose** — collector deployment
-- **GitHub Actions** — linting and test automation
-
-## Endpoint Checks
-
-| Check | Windows | Linux |
+| Control | Windows source | Linux source |
 |---|---|---|
-| Disk encryption | `Get-BitLockerVolume` | LUKS via `lsblk` / `cryptsetup` |
-| Patch level | `Get-HotFix` | `apt` / `dnf` update history |
-| Firewall | `Get-NetFirewallProfile` | `ufw` / `firewall-cmd` |
-| Antivirus | Microsoft Defender | ClamAV where applicable |
-| Local administrators | Administrators group | `sudo` / `wheel` membership |
-| Screen lock | Registry inactivity settings | `gsettings` idle delay |
-| Pending reboot | Reboot-required registry keys | `/var/run/reboot-required` |
-| Unauthorised software | Installed apps vs blocklist | `dpkg` / `rpm` vs blocklist |
+| Disk encryption | OS drive BitLocker protection enabled **and** 100% encrypted | Root block-device ancestry must pass through `crypt` on every path |
+| Patch age | Most recent installed `Get-HotFix` date | Completed apt install/upgrade history; RPM installation timestamp |
+| Firewall | Domain, Private and Public profiles enabled | Active `ufw` or `firewalld` |
+| Antivirus | Defender service, antivirus, real-time protection and signature age | ClamAV daemon state and signature age |
+| Local administrators | Built-in Administrators group SID; domain names preserved | UID 0 accounts plus primary/supplementary `sudo` and `wheel` members |
+| Screen lock | Machine-wide `InactivityTimeoutSecs` policy | GNOME idle delay plus lock delay; explicit headless exemption |
+| Pending reboot | CBS, Windows Update and pending file rename flags | Debian reboot-required marker; RPM `needs-restarting -r` |
+| Software blocklist | Machine-wide installed application registry names | Installed dpkg/RPM package names |
 
-Each check is designed to return one of:
+Patch age is a **recency proxy**, not proof that all security updates are installed. Linux administrator inventory does not parse custom sudoers or polkit rules. Software inventory excludes portable applications, Windows per-user/MSIX installs and Linux Flatpak/Snap. These boundaries are intentional and documented in [docs/OPERATIONS.md](docs/OPERATIONS.md).
 
-- `pass` — policy requirement met
-- `fail` — endpoint inspected successfully but does not meet policy
-- `warn` — requires attention but is not a hard failure
-- `error` — the check itself could not be completed
-- `not_applicable` — the control genuinely does not apply on the platform
+## Run an agent
 
-`error` and `fail` are intentionally different states.
+The agents only inspect configuration; they never enable encryption, change firewall rules, install patches or remove software. Local JSON output is available even without the collector.
 
-## Shared Reporting Contract
+**Windows 10/11 or Windows Server, 64-bit Windows PowerShell 5.1+:**
 
-Both agents are designed to emit the same JSON shape so the collector remains platform-agnostic.
-
-```json
-{
-  "device_id": "LAB-WIN-01",
-  "hostname": "windows-lab-01",
-  "os": "windows",
-  "os_version": "11",
-  "collected_at": "2026-09-19T14:03:11Z",
-  "agent_version": "1.0.0",
-  "checks": [
-    {
-      "id": "disk_encryption",
-      "status": "pass",
-      "value": "BitLocker enabled",
-      "detail": null
-    }
-  ]
-}
+```powershell
+# Use an elevated PowerShell session for privileged probes.
+.\agents\windows\check.ps1 -OutputPath "$env:TEMP\endpoint-report.json"
+# Set API_KEY and COLLECTOR_URL first; HTTPS is required for remote collectors.
+.\agents\windows\check.ps1 -Send -OutputPath "$env:TEMP\endpoint-report.json"
 ```
 
-All examples in this repository use **lab or synthetic data only**.
+**Linux, Python 3.10+ and Bash:**
 
-## Policy Model
-
-Security requirements are stored in configuration rather than hard-coded into endpoint scripts.
-
-```yaml
-version: 1
-baseline:
-  disk_encryption:
-    required: true
-    severity: critical
-  patch_level:
-    max_days_since_update: 30
-    severity: high
-  firewall:
-    required: true
-    severity: high
-  screen_lock:
-    max_timeout_minutes: 15
-    severity: medium
-
-compliance_threshold: 90
+```bash
+# Run with appropriate permissions. No Python packages are required on the endpoint.
+bash agents/linux/check.sh --output /tmp/endpoint-report.json
+# Use --headless only for an actual server without an interactive desktop.
+bash agents/linux/check.sh --headless --send --output /tmp/endpoint-report.json
 ```
 
-## Repository Structure
+A permission problem, missing command or unsupported provider produces `error`, not a fabricated pass. A Linux desktop must be inspected in the relevant GNOME user's session; a root/systemd process cannot prove the user's screen-lock settings. The headless exception is allowed only where the central policy explicitly permits it.
 
-```text
-Endpoint-compliance-agent/
-├── agents/
-│   ├── windows/check.ps1
-│   └── linux/check.sh
-├── collector/
-│   ├── api.py
-│   ├── db.py
-│   ├── evaluate.py
-│   └── alert.py
-├── policy/
-│   └── baseline.yaml
-├── schema/
-│   └── report.schema.json
-├── tests/
-├── scripts/
-│   └── generate_fake_fleet.py
-├── .github/workflows/
-├── docker-compose.yml
-└── README.md
+Agents generate a stable pseudonymous device ID from the machine ID; use `--device-id` / `-DeviceId` for enrolled lab names. Hostnames, local account names and installed software are still sensitive inventory. Keep real reports out of Git.
+
+## Policy and scoring
+
+Edit [policy/baseline.yaml](policy/baseline.yaml). The collector validates and reloads it on each ingestion/fleet request. A configuration error rejects the request with `503`; it does not silently use a permissive fallback.
+
+- Weights: critical **4**, high **3**, medium **2**, low **1**.
+- `pass` earns full weight; `warn` earns half; `fail` and `error` earn zero.
+- Approved `not_applicable` checks are excluded from the denominator.
+- Score = earned weight / applicable weight × 100.
+- A critical failure always means `non_compliant`. Other failures below the configured threshold also mean `non_compliant`.
+- Remaining collection errors mean `unknown`, even if the numeric score would meet the threshold.
+- Above-threshold failures/warnings remain visible as `warning`; they never appear fully compliant.
+- Stale devices are counted separately, regardless of their last score.
+
+The agent's `status: pass` means a probe returned facts successfully, **not** that the endpoint meets policy. The collector independently evaluates the typed `value`. Agent-supplied pass/fail/warn verdicts cannot override those facts. Missing checks become errors; duplicate check IDs are rejected.
+
+Default threshold: 90%; patch recency: 30 days; signatures: 3 days; lock timeout: 15 minutes. The sample blocklist contains the synthetic name `demo-blocked-app`. Review allowlists and thresholds for your lab before using real agents.
+
+## API
+
+All data routes require `Authorization: Bearer <API_KEY>`. The collector refuses startup with a key shorter than 24 characters. The public routes expose only health and the empty dashboard shell/assets. The dashboard keeps its key in memory, not browser storage.
+
+| Method and path | Purpose |
+|---|---|
+| `GET /health` | Public readiness/version response |
+| `POST /reports` | Validate, evaluate and store raw facts; `201` new or `200` duplicate |
+| `GET /fleet` | Latest devices, current policy scores and stale counts |
+| `GET /devices/{device_id}/history?limit=50` | Original reports and evaluations; maximum 200 |
+| `GET /policy` | Current validated baseline |
+
+Reports older than 24 hours or more than 5 minutes ahead are rejected by default. Maximum body size is 512 KiB. Identical evidence is not stored twice. Older accepted reports stay in history but cannot replace newer device state or trigger current-state alerts.
+
+## Docker, scheduling and alerts
+
+```bash
+cp .env.example .env
+# Put a generated API_KEY in .env; leave WEBHOOK_URL empty for the demo.
+docker compose up --build -d
 ```
 
-## Build Roadmap
+The published port binds to loopback. A named volume preserves SQLite data; policy is mounted read-only. Use `docker compose down` to stop while preserving the database. A remote deployment requires a TLS reverse proxy and additional hardening.
 
-- [ ] Windows agent with BitLocker check
-- [ ] Remaining Windows compliance checks
-- [ ] Linux agent matching the shared JSON contract
-- [ ] JSON Schema validation for both agents
-- [ ] FastAPI `POST /reports` ingestion endpoint
-- [ ] SQLite persistence with report history
-- [ ] YAML-driven compliance evaluation
-- [ ] Known-good and known-bad test fixtures
-- [ ] Fleet compliance dashboard
-- [ ] Webhook alerting with debounce
-- [ ] Windows Task Scheduler configuration
-- [ ] Linux cron/systemd scheduling
-- [ ] Docker Compose deployment
-- [ ] GitHub Actions lint and test workflow
+See [docs/OPERATIONS.md](docs/OPERATIONS.md) for systemd, Windows Task Scheduler, offline reports and webhook setup. Alerts are disabled until you configure an HTTPS URL. They are debounced per device and control-state signature, survive restarts and retry failed delivery on the next fresh report. Alert delivery is best-effort, not a durable message queue.
 
-## Tests That Matter
+## Verify it
 
-The intended test suite focuses on behaviour rather than coverage percentage alone.
+```bash
+python -m pip install -r requirements-dev.lock
+ruff check .
+ruff format --check .
+pytest -q
+python -m scripts.smoke_test
+python -m scripts.validate_report tests/fixtures/windows-good.json tests/fixtures/linux-good.json
+```
 
-- Windows and Linux reports validate against the same JSON Schema
-- A known failing report produces the expected compliance score
-- `error` is handled separately from `fail`
-- Changing policy changes scoring without changing application code
-- Repeated failing runs do not generate duplicate alerts
+On Windows:
 
-## Lab Environment
+```powershell
+.\tests\test_windows_agent.ps1
+python -m scripts.validate_report output/windows-test.json output/windows-error-test.json
+```
 
-The project is intended to be demonstrated using:
+CI also collects a live report on hosted Linux and Windows runners, validates the contract and builds/starts the container. Hosted CI cannot prove BitLocker/LUKS behaviour across every real device; controlled fixtures test those decision branches. The supported use is a portfolio/lab demonstration.
 
-- Windows 11 evaluation VM
-- Ubuntu VM
-- VirtualBox
-- synthetic fleet reports generated with Python
+## Repository map
 
-A synthetic 50-device fleet may be used for dashboard demonstrations. Synthetic reports do **not** represent 50 physical devices.
+| Path | Purpose |
+|---|---|
+| `agents/` | Read-only endpoint probes and scheduled Windows runner |
+| `collector/` | API, policy evaluator, SQLite store, alerts and dashboard |
+| `schema/` | Typed report contract and validated policy definition |
+| `policy/` | Example baseline |
+| `scripts/` | Synthetic fleet, disposable smoke test, report validator |
+| `tests/` | Behaviour tests, synthetic fixtures and Windows probe tests |
+| `deployment/` | systemd timer/service and Windows task registration |
+| `.github/workflows/ci.yml` | Linux/Python, Windows and container gates |
 
-## Security Considerations
+## Security and further development
 
-A production deployment would require additional controls such as:
+This is a finished **v1.0 lab scope** with explicitly bounded collection support. See [SECURITY.md](SECURITY.md). It does not provide per-device identity, signed evidence, endpoint attestation, role-based access, high availability, queue-backed alert guarantees or organisation-specific compliance certification. A shared key can forge any device ID. Do not expose the collector directly to the public internet.
 
-- authenticated agents
-- TLS-protected transport
-- device identity and certificate management
-- signed or otherwise integrity-protected reports
-- secrets management
-- role-based dashboard access
-- central endpoint deployment and upgrade controls
-- controls against compromised endpoints falsely reporting compliance
-
-See [`SECURITY.md`](SECURITY.md) for repository-specific guidance.
-
-## Current Limitations
-
-This repository is an active engineering project, not a production endpoint-management platform. The initial lab architecture uses SQLite for simplicity and does not yet represent the authentication, scale or operational controls required for an enterprise deployment.
-
-## What This Project Demonstrates
-
-- endpoint management concepts
-- Windows administration with PowerShell
-- Linux administration with Bash
-- Python automation and API development
-- configuration-driven security controls
-- cross-platform interface design
-- automated testing
-- compliance engineering
-- security monitoring
-- safe use of synthetic data
-- technical documentation
-
-## Interview Topics
-
-The finished project is designed to support discussion around:
-
-- Why collect facts on the endpoint but evaluate policy centrally?
-- What happens when an agent cannot reach the collector?
-- How would this architecture change for 5,000 endpoints?
-- How can false compliance reports from compromised agents be reduced?
-- Why is `error` different from `fail`?
-- How should policy changes be versioned and audited?
-
-## Future Improvements
-
-Potential extensions after the core build include:
-
-- PostgreSQL for larger-scale storage
-- certificate-based agent authentication
-- cryptographically signed reports
-- Intune or other endpoint-management integration
-- Microsoft Defender integration
-- role-based dashboard access
-- richer compliance trend and drift analytics
-- central agent deployment and upgrade management
-
-## Development Approach
-
-This project is being built incrementally. Each meaningful feature should be implemented, tested and committed separately so the repository history reflects the engineering process rather than a single finished-code upload.
-
-No production employer data, real employee identities, credentials or proprietary internal information should be committed to this repository.
+Possible later versions can add mTLS, separate agent/viewer permissions, PostgreSQL, durable alert delivery, broader OS providers and managed agent rollouts. Those extensions are outside the completed v1.0 scope.
